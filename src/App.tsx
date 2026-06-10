@@ -4,6 +4,7 @@ import { Viewfinder } from './components/Viewfinder';
 import { ImageSelector } from './components/ImageSelector';
 import { GeminiFeedback } from './components/GeminiFeedback';
 import { SettingsModal } from './components/SettingsModal';
+import { CompositionGuideModal } from './components/CompositionGuideModal';
 import type { CompositionType } from './components/CompositionOverlays';
 import { translations, type Language } from './translations';
 import {
@@ -14,7 +15,8 @@ import {
   Sliders,
   Sparkles,
   Settings,
-  Lightbulb
+  Lightbulb,
+  BookOpen
 } from 'lucide-react';
 
 interface HintData {
@@ -58,6 +60,7 @@ export default function App() {
   });
   const [unsplashAccessKey, setUnsplashAccessKey] = useState<string>(() => localStorage.getItem('UNSPLASH_ACCESS_KEY') || '');
   const [showSettings, setShowSettings] = useState<boolean>(false);
+  const [showGuide, setShowGuide] = useState<boolean>(false);
 
   const handleSetApiKey = (key: string) => {
     const trimmed = key.trim();
@@ -332,6 +335,15 @@ export default function App() {
             <Sparkles size={13} className="text-teal-400" />
             <span>{useMock ? t.simulatorMode : `AI: ${model.replace('gemini-', '').replace('-', ' ').toUpperCase()}`}</span>
           </div>
+
+          <button
+            onClick={() => setShowGuide(true)}
+            className="p-2 rounded-xl border bg-neutral-900 border-neutral-850 text-neutral-300 hover:border-neutral-700 hover:text-white transition-all flex items-center gap-2 text-xs font-semibold cursor-pointer"
+            title={t.compositionGuide}
+          >
+            <BookOpen size={15} />
+            <span className="hidden md:inline">{t.compositionGuide}</span>
+          </button>
 
           <button
             onClick={() => setShowSettings(true)}
@@ -683,6 +695,12 @@ export default function App() {
         setUseMock={handleSetUseMock}
         unsplashAccessKey={unsplashAccessKey}
         setUnsplashAccessKey={handleSetUnsplashAccessKey}
+        language={language}
+      />
+
+      <CompositionGuideModal
+        isOpen={showGuide}
+        onClose={() => setShowGuide(false)}
         language={language}
       />
     </div>
