@@ -5,6 +5,7 @@ import { ImageSelector } from './components/ImageSelector';
 import { GeminiFeedback } from './components/GeminiFeedback';
 import { SettingsModal } from './components/SettingsModal';
 import type { CompositionType } from './components/CompositionOverlays';
+import { translations, type Language } from './translations';
 import {
   Camera,
   RotateCw,
@@ -17,6 +18,13 @@ import {
 } from 'lucide-react';
 
 export default function App() {
+  // Language State
+  const [language, setLanguage] = useState<Language>(() => {
+    const saved = localStorage.getItem('APP_LANGUAGE') as Language;
+    return saved === 'vi' ? 'vi' : 'en';
+  });
+  const t = translations[language];
+
   const [imageUrl, setImageUrl] = useState<string>('https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?auto=format&fit=crop&w=1200&q=80');
   const [imageDescription, setImageDescription] = useState<string>('A vibrant banana on a solid background, great for minimalist composition.');
 
@@ -69,6 +77,11 @@ export default function App() {
     const trimmed = key.trim();
     localStorage.setItem('UNSPLASH_ACCESS_KEY', trimmed);
     setUnsplashAccessKey(trimmed);
+  };
+
+  const handleLanguageChange = (lang: Language) => {
+    localStorage.setItem('APP_LANGUAGE', lang);
+    setLanguage(lang);
   };
 
   // Viewfinder configurations
@@ -144,6 +157,7 @@ export default function App() {
         Provide a concise, helpful composition hint to a student who is learning how to frame a crop of this photo.
         Suggest the best composition rule to use (e.g. rule of thirds, symmetry, spiral, leading lines) and describe exactly where they should place their crop box for a beautiful photograph.
         Keep the hint short, actionable, and limited to 2-3 inspiring sentences.
+        IMPORTANT: Write the response in the following language: ${language === 'vi' ? 'Vietnamese (Tiếng Việt)' : 'English'}.
       `;
 
       const response = await modelInstance.generateContent([prompt, imagePart]);
@@ -215,26 +229,50 @@ export default function App() {
           </div>
           <div>
             <h1 className="text-sm font-black tracking-wider uppercase text-neutral-200">ISO-Composition</h1>
-            <p className="text-[10px] text-neutral-500 uppercase tracking-widest font-semibold">Interactive Composition Trainer</p>
+            <p className="text-[10px] text-neutral-500 uppercase tracking-widest font-semibold">{t.title}</p>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Language Selector */}
+          <div className="flex bg-neutral-900 border border-neutral-850 rounded-lg p-0.5">
+            <button
+              onClick={() => handleLanguageChange('en')}
+              className={`px-2 py-1 text-[10px] font-bold rounded transition-all cursor-pointer ${
+                language === 'en'
+                  ? 'bg-teal-500 text-neutral-950 shadow'
+                  : 'text-neutral-500 hover:text-neutral-300'
+              }`}
+            >
+              EN
+            </button>
+            <button
+              onClick={() => handleLanguageChange('vi')}
+              className={`px-2 py-1 text-[10px] font-bold rounded transition-all cursor-pointer ${
+                language === 'vi'
+                  ? 'bg-teal-500 text-neutral-950 shadow'
+                  : 'text-neutral-500 hover:text-neutral-300'
+              }`}
+            >
+              VI
+            </button>
+          </div>
+
           <div className="hidden sm:flex items-center gap-2 text-xs bg-neutral-900/60 border border-neutral-800/80 px-3 py-1.5 rounded-lg text-neutral-400">
             <Sparkles size={13} className="text-teal-400" />
-            <span>AI: {useMock ? 'Simulator' : model.replace('gemini-', '').replace('-', ' ').toUpperCase()}</span>
+            <span>{useMock ? t.simulatorMode : `AI: ${model.replace('gemini-', '').replace('-', ' ').toUpperCase()}`}</span>
           </div>
 
           <button
             onClick={() => setShowSettings(true)}
             className={`p-2 rounded-xl border transition-all flex items-center gap-2 text-xs font-semibold cursor-pointer relative ${!apiKey && !useMock
-                ? 'bg-amber-500/10 border-amber-500/40 text-amber-400 animate-pulse hover:bg-amber-500/20'
-                : 'bg-neutral-900 border-neutral-850 text-neutral-300 hover:border-neutral-700 hover:text-white'
+              ? 'bg-amber-500/10 border-amber-500/40 text-amber-400 animate-pulse hover:bg-amber-500/20'
+              : 'bg-neutral-900 border-neutral-850 text-neutral-300 hover:border-neutral-700 hover:text-white'
               }`}
-            title="Configure API Key & Models"
+            title={t.settingsTitle}
           >
             <Settings size={15} className={useMock ? '' : 'animate-spin-slow'} />
-            <span className="hidden md:inline">AI Settings</span>
+            <span className="hidden md:inline">{t.settings}</span>
             {!apiKey && !useMock && (
               <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 rounded-full border border-neutral-950 animate-ping" />
             )}
@@ -252,6 +290,7 @@ export default function App() {
               onSelectImage={handleSelectImage}
               currentImageUrl={imageUrl}
               unsplashAccessKey={unsplashAccessKey}
+              language={language}
             />
           </div>
 
@@ -259,20 +298,20 @@ export default function App() {
           <div className="glass-panel p-5 rounded-2xl space-y-5">
             <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400 flex items-center gap-1.5">
               <Sliders size={14} className="text-teal-400" />
-              Camera Controls
+              {t.cameraControls}
             </h3>
 
             {/* Aspect Ratio choice */}
             <div className="space-y-2">
-              <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block">Aspect Ratio</span>
+              <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block">{t.aspectRatio}</span>
               <div className="grid grid-cols-4 gap-1.5">
                 {['16:9', '3:2', '4:3', '1:1'].map((ratio) => (
                   <button
                     key={ratio}
                     onClick={() => setAspectRatio(ratio)}
                     className={`py-1.5 text-xs font-semibold rounded-lg border transition-all ${aspectRatio === ratio
-                        ? 'bg-teal-500 text-neutral-950 border-teal-500'
-                        : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:border-neutral-700'
+                      ? 'bg-teal-500 text-neutral-950 border-teal-500'
+                      : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:border-neutral-700'
                       }`}
                   >
                     {ratio}
@@ -283,27 +322,27 @@ export default function App() {
 
             {/* Orientation choice */}
             <div className="space-y-2">
-              <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block">Orientation</span>
+              <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block">{t.orientation}</span>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => setOrientation('horizontal')}
                   className={`py-2 text-xs font-semibold rounded-lg border flex items-center justify-center gap-1.5 transition-all ${orientation === 'horizontal'
-                      ? 'bg-neutral-800 border-teal-500/50 text-teal-400'
-                      : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:border-neutral-700'
+                    ? 'bg-neutral-800 border-teal-500/50 text-teal-400'
+                    : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:border-neutral-700'
                     }`}
                 >
                   <Maximize2 size={13} className="rotate-90" />
-                  Horizontal
+                  {t.horizontal}
                 </button>
                 <button
                   onClick={() => setOrientation('vertical')}
                   className={`py-2 text-xs font-semibold rounded-lg border flex items-center justify-center gap-1.5 transition-all ${orientation === 'vertical'
-                      ? 'bg-neutral-800 border-teal-500/50 text-teal-400'
-                      : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:border-neutral-700'
+                    ? 'bg-neutral-800 border-teal-500/50 text-teal-400'
+                    : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:border-neutral-700'
                     }`}
                 >
                   <Maximize2 size={13} />
-                  Vertical
+                  {t.vertical}
                 </button>
               </div>
             </div>
@@ -315,20 +354,20 @@ export default function App() {
           {/* Grid Selection Strip */}
           <div className="w-full bg-neutral-900/40 border border-neutral-900 rounded-xl p-2.5 flex justify-between gap-1 overflow-x-auto">
             {[
-              { id: 'thirds', label: 'Rule of Thirds' },
-              { id: 'phi', label: 'Phi Grid' },
-              { id: 'spiral', label: 'Fibonacci' },
-              { id: 'leading', label: 'Leading Lines' },
-              { id: 'symmetry', label: 'Symmetry' },
-              { id: 'triangles', label: 'Triangles' },
-              { id: 'none', label: 'No Guides' },
+              { id: 'thirds', label: t.ruleOfThirds },
+              { id: 'phi', label: t.phiGrid },
+              { id: 'spiral', label: t.fibonacci },
+              { id: 'leading', label: t.leadingLines },
+              { id: 'symmetry', label: t.symmetry },
+              { id: 'triangles', label: t.triangles },
+              { id: 'none', label: t.noGuides },
             ].map((g) => (
               <button
                 key={g.id}
                 onClick={() => setComposition(g.id as CompositionType)}
                 className={`px-3 py-1.5 text-xs rounded-lg transition-all shrink-0 font-medium ${composition === g.id
-                    ? 'bg-teal-500/10 text-teal-400 border border-teal-500/20'
-                    : 'text-neutral-500 hover:text-neutral-300'
+                  ? 'bg-teal-500/10 text-teal-400 border border-teal-500/20'
+                  : 'text-neutral-500 hover:text-neutral-300'
                   }`}
               >
                 {g.label}
@@ -371,7 +410,7 @@ export default function App() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5 text-amber-400 font-bold text-xs">
                       <Lightbulb size={14} className="text-amber-400 animate-pulse" />
-                      <span>💡 AI Composition Hint</span>
+                      <span>💡 AI {t.aiHint}</span>
                     </div>
                     <button
                       onClick={() => setHintText(null)}
@@ -393,10 +432,10 @@ export default function App() {
                 <button
                   onClick={rotateSpiral}
                   className="bg-neutral-900/95 hover:bg-neutral-800 border border-neutral-800 text-teal-400 p-2 px-3 rounded-full shadow-lg transition-all flex items-center gap-1.5 text-xs cursor-pointer"
-                  title="Rotate Spiral Guide"
+                  title={t.rotateSpiral}
                 >
                   <RotateCw size={14} className="animate-spin-slow" />
-                  <span className="hidden sm:inline">Rotate Spiral</span>
+                  <span className="hidden sm:inline">{t.rotateSpiral}</span>
                 </button>
               )}
 
@@ -405,10 +444,10 @@ export default function App() {
                 disabled={hintLoading}
                 className={`bg-neutral-900/95 hover:bg-neutral-800 border border-neutral-800 text-amber-400 p-2 px-3 rounded-full shadow-lg transition-all flex items-center gap-1.5 text-xs cursor-pointer ${hintLoading ? 'opacity-50 cursor-not-allowed' : ''
                   }`}
-                title="Get AI composition advice for this image"
+                title={t.aiHint}
               >
                 <Lightbulb size={13} className="text-amber-400 animate-pulse" />
-                <span>{hintLoading ? 'Thinking...' : 'AI Hint'}</span>
+                <span>{hintLoading ? t.hintLoading : `AI ${t.aiHint}`}</span>
               </button>
             </div>
 
@@ -427,10 +466,10 @@ export default function App() {
               onClick={takeShot}
               disabled={croppedBase64 !== null}
               className={`w-20 h-20 rounded-full border-4 border-neutral-800 flex items-center justify-center p-1 transition-all shrink-0 ${croppedBase64
-                  ? 'opacity-30 cursor-not-allowed scale-95'
-                  : 'hover:border-teal-400 active:scale-95 bg-neutral-900 shadow-[0_0_15px_rgba(20,184,166,0.1)]'
+                ? 'opacity-30 cursor-not-allowed scale-95'
+                : 'hover:border-teal-400 active:scale-95 bg-neutral-900 shadow-[0_0_15px_rgba(20,184,166,0.1)]'
                 }`}
-              title="Snap framing & analyze composition"
+              title={t.snapFraming}
             >
               <div className="w-full h-full rounded-full bg-teal-500 hover:bg-teal-400 flex items-center justify-center text-neutral-950 transition-colors">
                 <Camera size={28} />
@@ -445,10 +484,10 @@ export default function App() {
                   setIsSubmittedForReview(false);
                 }}
                 className="absolute left-1/2 ml-14 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-neutral-400 hover:text-white px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer shadow-lg animate-fade-in"
-                title="Reset viewfinder to take another shot"
+                title={t.retake}
               >
                 <RotateCw size={13} />
-                Retake
+                {t.retake}
               </button>
             )}
           </div>
@@ -459,14 +498,14 @@ export default function App() {
           <div className="glass-panel p-5 rounded-2xl space-y-5 min-h-[400px] lg:max-h-[calc(100vh-120px)] overflow-y-auto">
             <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400 flex items-center gap-1.5">
               <Crop size={14} className="text-teal-400" />
-              Framing & Critique
+              {t.framingCritiqueHeader}
             </h3>
 
             {croppedBase64 ? (
               <div className="space-y-6">
                 {/* Snapshot Thumbnail preview */}
                 <div className="space-y-2">
-                  <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block">Your Captured Frame</span>
+                  <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block">{t.yourCapturedFrame}</span>
                   <div className="border border-neutral-800 rounded-xl overflow-hidden shadow-lg bg-neutral-950">
                     <img
                       src={croppedBase64}
@@ -479,9 +518,9 @@ export default function App() {
                 {!isSubmittedForReview ? (
                   <div className="glass-panel p-4 rounded-xl space-y-4 border border-teal-500/20 bg-teal-950/5 animate-fade-in">
                     <div className="space-y-1">
-                      <h4 className="text-xs font-bold text-neutral-200">Ready for review?</h4>
+                      <h4 className="text-xs font-bold text-neutral-200">{t.readyForReview}</h4>
                       <p className="text-[11px] text-neutral-400 leading-relaxed">
-                        Verify your layout using the <span className="text-teal-400 font-semibold">{composition === 'none' ? 'no grid' : composition.replace('-', ' ')}</span> guideline. If you are satisfied with your framing, click below to submit it to the AI reviewer.
+                        {t.readyForReviewDesc}
                       </p>
                     </div>
 
@@ -491,7 +530,7 @@ export default function App() {
                         className="w-full bg-teal-500 hover:bg-teal-400 text-neutral-950 font-bold py-2 px-3 rounded-lg text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-teal-500/15"
                       >
                         <Sparkles size={14} />
-                        Send to AI Reviewer
+                        {t.confirmReview}
                       </button>
                       <button
                         onClick={() => {
@@ -500,7 +539,7 @@ export default function App() {
                         }}
                         className="w-full bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-neutral-400 hover:text-neutral-200 font-semibold py-2 px-3 rounded-lg text-xs transition-colors cursor-pointer"
                       >
-                        Discard & Retake
+                        {t.discardRetake}
                       </button>
                     </div>
                   </div>
@@ -508,15 +547,12 @@ export default function App() {
                   <GeminiFeedback
                     croppedImageBase64={croppedBase64}
                     activeComposition={composition}
-                    onClear={() => {
-                      setCroppedBase64(null);
-                      setIsSubmittedForReview(false);
-                    }}
                     apiKey={apiKey}
                     model={model}
                     temperature={temperature}
                     useMock={useMock}
                     onOpenSettings={() => setShowSettings(true)}
+                    language={language}
                   />
                 )}
               </div>
@@ -526,9 +562,9 @@ export default function App() {
                   <Camera size={24} />
                 </div>
                 <div className="space-y-1">
-                  <h4 className="text-xs font-bold text-neutral-300">No Shot Snapped</h4>
+                  <h4 className="text-xs font-bold text-neutral-300">{t.noShotSnapped}</h4>
                   <p className="text-[11px] text-neutral-500 max-w-[180px]">
-                    Position your viewfinder box on the photo and hit the shutter button below to analyze your composition.
+                    {t.noShotSnappedDesc}
                   </p>
                 </div>
               </div>
@@ -539,7 +575,7 @@ export default function App() {
 
       {/* Footer / Guide banner */}
       <footer className="border-t border-neutral-900 p-4 bg-neutral-950 text-center text-[10px] text-neutral-600">
-        ISO-Composition Trainer • Interactive photography simulator built with React, TypeScript & Gemini.
+        {t.footerText}
       </footer>
 
       {/* Settings Modal overlay */}
@@ -556,6 +592,7 @@ export default function App() {
         setUseMock={handleSetUseMock}
         unsplashAccessKey={unsplashAccessKey}
         setUnsplashAccessKey={handleSetUnsplashAccessKey}
+        language={language}
       />
     </div>
   );

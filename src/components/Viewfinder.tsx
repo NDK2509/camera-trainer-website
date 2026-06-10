@@ -238,7 +238,7 @@ export const Viewfinder: React.FC<ViewfinderProps> = ({
   return (
     <div className="absolute -inset-[1px] select-none overflow-hidden rounded-lg">
       {/* Dimmed background overlay outside of viewfinder box */}
-      <div 
+      <div
         className="absolute inset-0 bg-neutral-950/70"
         style={{
           clipPath: `polygon(
@@ -257,9 +257,8 @@ export const Viewfinder: React.FC<ViewfinderProps> = ({
       <div
         ref={containerRef}
         style={boxStyle}
-        className={`absolute border-2 border-teal-400 shadow-[0_0_0_1px_rgba(0,0,0,0.5),inset_0_0_0_1px_rgba(0,0,0,0.5)] cursor-move transition-shadow ${
-          isDragging ? 'shadow-2xl border-teal-300' : 'hover:border-teal-300'
-        }`}
+        className={`absolute border-2 border-teal-400 shadow-[0_0_0_1px_rgba(0,0,0,0.5),inset_0_0_0_1px_rgba(0,0,0,0.5)] cursor-move transition-shadow ${isDragging ? 'shadow-2xl border-teal-300' : 'hover:border-teal-300'
+          }`}
         onMouseDown={handleDragStart}
       >
         {/* Render Vector Overlays inside */}
