@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { Viewfinder } from './components/Viewfinder';
 import { ImageSelector } from './components/ImageSelector';
 import { GeminiFeedback } from './components/GeminiFeedback';
+import { SettingsModal } from './components/SettingsModal';
 import type { CompositionType } from './components/CompositionOverlays';
 import { 
   Camera, 
@@ -9,12 +10,52 @@ import {
   Crop, 
   Maximize2, 
   Sliders, 
-  Sparkles
+  Sparkles,
+  Settings
 } from 'lucide-react';
 
 export default function App() {
   const [imageUrl, setImageUrl] = useState<string>('https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?auto=format&fit=crop&w=1200&q=80');
   const [imageDescription, setImageDescription] = useState<string>('A vibrant banana on a solid background, great for minimalist composition.');
+  
+  // AI Configuration State
+  const [apiKey, setApiKey] = useState<string>(() => localStorage.getItem('GEMINI_API_KEY') || '');
+  const [model, setModel] = useState<string>(() => localStorage.getItem('GEMINI_MODEL') || 'gemini-2.5-flash');
+  const [temperature, setTemperature] = useState<number>(() => {
+    const stored = localStorage.getItem('GEMINI_TEMPERATURE');
+    return stored ? parseFloat(stored) : 0.4;
+  });
+  const [useMock, setUseMock] = useState<boolean>(() => {
+    const stored = localStorage.getItem('GEMINI_USE_MOCK');
+    if (stored !== null) return stored === 'true';
+    return !localStorage.getItem('GEMINI_API_KEY'); // default to mock if no API key
+  });
+  const [showSettings, setShowSettings] = useState<boolean>(false);
+
+  const handleSetApiKey = (key: string) => {
+    const trimmed = key.trim();
+    localStorage.setItem('GEMINI_API_KEY', trimmed);
+    setApiKey(trimmed);
+    if (trimmed && useMock) {
+      localStorage.setItem('GEMINI_USE_MOCK', 'false');
+      setUseMock(false);
+    }
+  };
+
+  const handleSetModel = (newModel: string) => {
+    localStorage.setItem('GEMINI_MODEL', newModel);
+    setModel(newModel);
+  };
+
+  const handleSetTemperature = (temp: number) => {
+    localStorage.setItem('GEMINI_TEMPERATURE', temp.toString());
+    setTemperature(temp);
+  };
+
+  const handleSetUseMock = (mock: boolean) => {
+    localStorage.setItem('GEMINI_USE_MOCK', mock.toString());
+    setUseMock(mock);
+  };
   
   // Viewfinder configurations
   const [composition, setComposition] = useState<CompositionType>('thirds');
@@ -89,9 +130,27 @@ export default function App() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 text-xs bg-neutral-900/60 border border-neutral-800/80 px-3 py-1.5 rounded-lg text-neutral-400">
-          <Sparkles size={13} className="text-teal-400" />
-          <span>Learn framing interactively with Gemini Feedback</span>
+        <div className="flex items-center gap-3">
+          <div className="hidden sm:flex items-center gap-2 text-xs bg-neutral-900/60 border border-neutral-800/80 px-3 py-1.5 rounded-lg text-neutral-400">
+            <Sparkles size={13} className="text-teal-400" />
+            <span>AI: {useMock ? 'Simulator' : model.replace('gemini-', '').replace('-', ' ').toUpperCase()}</span>
+          </div>
+          
+          <button
+            onClick={() => setShowSettings(true)}
+            className={`p-2 rounded-xl border transition-all flex items-center gap-2 text-xs font-semibold cursor-pointer relative ${
+              !apiKey && !useMock
+                ? 'bg-amber-500/10 border-amber-500/40 text-amber-400 animate-pulse hover:bg-amber-500/20'
+                : 'bg-neutral-900 border-neutral-850 text-neutral-300 hover:border-neutral-700 hover:text-white'
+            }`}
+            title="Configure API Key & Models"
+          >
+            <Settings size={15} className={useMock ? '' : 'animate-spin-slow'} />
+            <span className="hidden md:inline">AI Settings</span>
+            {!apiKey && !useMock && (
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 rounded-full border border-neutral-950 animate-ping" />
+            )}
+          </button>
         </div>
       </header>
 
@@ -283,6 +342,11 @@ export default function App() {
                   croppedImageBase64={croppedBase64}
                   activeComposition={composition}
                   onClear={() => setCroppedBase64(null)}
+                  apiKey={apiKey}
+                  model={model}
+                  temperature={temperature}
+                  useMock={useMock}
+                  onOpenSettings={() => setShowSettings(true)}
                 />
               </div>
             ) : (
@@ -306,6 +370,20 @@ export default function App() {
       <footer className="border-t border-neutral-900 p-4 bg-neutral-950 text-center text-[10px] text-neutral-600">
         ISO-Composition Trainer • Interactive photography simulator built with React, TypeScript & Gemini.
       </footer>
+
+      {/* Settings Modal overlay */}
+      <SettingsModal
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        apiKey={apiKey}
+        setApiKey={handleSetApiKey}
+        model={model}
+        setModel={handleSetModel}
+        temperature={temperature}
+        setTemperature={handleSetTemperature}
+        useMock={useMock}
+        setUseMock={handleSetUseMock}
+      />
     </div>
   );
 }

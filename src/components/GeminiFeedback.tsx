@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { Key, Sparkles, AlertCircle, Camera, CheckCircle2, Award } from 'lucide-react';
+import { Sparkles, AlertCircle, Camera, Award } from 'lucide-react';
 
 interface GeminiFeedbackProps {
   croppedImageBase64: string | null; // Base64 representation of crop
   activeComposition: string;
   onClear: () => void;
+  apiKey: string;
+  model: string;
+  temperature: number;
+  useMock: boolean;
+  onOpenSettings: () => void;
 }
 
 interface AnalysisResult {
@@ -21,44 +26,31 @@ export const GeminiFeedback: React.FC<GeminiFeedbackProps> = ({
   croppedImageBase64,
   activeComposition,
   onClear,
+  apiKey,
+  model: selectedModel,
+  temperature,
+  useMock,
+  onOpenSettings,
 }) => {
-  const [apiKey, setApiKey] = useState<string>(() => localStorage.getItem('GEMINI_API_KEY') || '');
-  const [showKeyInput, setShowKeyInput] = useState<boolean>(() => !localStorage.getItem('GEMINI_API_KEY'));
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AnalysisResult | null>(null);
-  const [useMock, setUseMock] = useState<boolean>(false);
-
-  const handleSaveKey = (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmedKey = apiKey.trim();
-    localStorage.setItem('GEMINI_API_KEY', trimmedKey);
-    setApiKey(trimmedKey);
-    setUseMock(false);
-    setShowKeyInput(false);
-    if (croppedImageBase64) {
-      analyzeComposition(trimmedKey, false);
-    }
-  };
-
-  const handleClearKey = () => {
-    localStorage.removeItem('GEMINI_API_KEY');
-    setApiKey('');
-    setShowKeyInput(true);
-  };
 
   // Perform Gemini analysis
-  const analyzeComposition = async (overrideKey?: string, overrideUseMock?: boolean) => {
+  const analyzeComposition = async () => {
     if (!croppedImageBase64) return;
     setIsLoading(true);
     setError(null);
     setResult(null);
 
-    const activeKey = overrideKey !== undefined ? overrideKey : apiKey;
-    const activeUseMock = overrideUseMock !== undefined ? overrideUseMock : useMock;
-
     // If using mock mode or API key is not present
-    if (activeUseMock || !activeKey) {
+    if (useMock || !apiKey) {
+      if (!useMock && !apiKey) {
+        setError('Gemini API key is required. Please set it in Settings, or toggle Simulator Mode to run offline.');
+        setIsLoading(false);
+        return;
+      }
+
       // Delay for realistic feel
       await new Promise((resolve) => setTimeout(resolve, 2000));
       
@@ -79,9 +71,11 @@ export const GeminiFeedback: React.FC<GeminiFeedbackProps> = ({
     }
 
     try {
-      const genAI = new GoogleGenerativeAI(activeKey);
-      // We will use gemini-2.5-flash which is standard and has visual capabilities
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ 
+        model: selectedModel,
+        generationConfig: { temperature }
+      });
 
       // Prepare image part
       const base64Data = croppedImageBase64.split(',')[1];
@@ -141,61 +135,35 @@ export const GeminiFeedback: React.FC<GeminiFeedbackProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* API Key settings panel */}
-      {showKeyInput ? (
-        <form onSubmit={handleSaveKey} className="glass-panel p-4 rounded-xl space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold flex items-center gap-1.5 text-teal-400">
-              <Key size={16} />
-              Gemini API Key
-            </h3>
-            <button
-              type="button"
-              onClick={() => {
-                setUseMock(true);
-                setShowKeyInput(false);
-                if (croppedImageBase64) {
-                  analyzeComposition('', true);
-                }
-              }}
-              className="text-[10px] text-neutral-400 hover:text-white underline"
-            >
-              Use Simulator Mode (No Key)
-            </button>
-          </div>
-          <p className="text-xs text-neutral-400">
-            Enter your Gemini API key to get personalized, real-time AI critique of your cropped photos. Your key is saved locally in your browser.
-          </p>
-          <div className="flex gap-2">
-            <input
-              type="password"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder="AIzaSy..."
-              className="flex-1 bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-1.5 text-xs text-neutral-200 focus:outline-none focus:border-teal-500"
-            />
-            <button
-              type="submit"
-              className="bg-teal-500 hover:bg-teal-400 text-neutral-950 font-semibold px-4 py-1.5 rounded-lg text-xs transition-colors"
-            >
-              Save Key
-            </button>
-          </div>
-        </form>
-      ) : (
-        <div className="flex items-center justify-between text-xs text-neutral-500">
-          <div className="flex items-center gap-1.5">
-            <CheckCircle2 size={13} className="text-teal-500" />
-            <span>AI feedback active ({useMock ? 'Simulator' : 'Gemini Cloud'})</span>
-          </div>
-          <button
-            onClick={handleClearKey}
-            className="text-neutral-400 hover:text-red-400 underline"
-          >
-            Remove Key
-          </button>
+      {/* AI Connection State Header */}
+      <div className="glass-panel p-3.5 rounded-xl flex items-center justify-between text-xs text-neutral-300">
+        <div className="flex items-center gap-2">
+          {useMock ? (
+            <div className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse animate-duration-1000" />
+              <span className="font-semibold text-neutral-400">Simulator Mode Active</span>
+            </div>
+          ) : apiKey ? (
+            <div className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-teal-450 animate-pulse" />
+              <span className="font-semibold text-neutral-200">
+                Gemini Cloud ({selectedModel.replace('gemini-', '').toUpperCase()})
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+              <span className="font-semibold text-amber-500">API Key Required</span>
+            </div>
+          )}
         </div>
-      )}
+        <button
+          onClick={onOpenSettings}
+          className="text-teal-400 hover:text-teal-300 underline font-semibold cursor-pointer text-xs"
+        >
+          Configure
+        </button>
+      </div>
 
       {/* Analysis Flow State */}
       {isLoading && (
@@ -223,13 +191,10 @@ export const GeminiFeedback: React.FC<GeminiFeedbackProps> = ({
             </div>
           </div>
           <button
-            onClick={() => {
-              setUseMock(true);
-              analyzeComposition();
-            }}
-            className="w-full bg-red-900/30 hover:bg-red-900/50 text-red-200 font-semibold py-1.5 rounded-lg text-xs transition-colors border border-red-800"
+            onClick={onOpenSettings}
+            className="w-full bg-red-950/30 hover:bg-red-900/40 text-red-300 font-semibold py-1.5 rounded-lg text-xs transition-colors border border-red-900/50 cursor-pointer"
           >
-            Switch to Offline Simulator
+            Configure settings / Switch to Simulator
           </button>
         </div>
       )}
