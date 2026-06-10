@@ -30,6 +30,7 @@ export default function App() {
     if (stored !== null) return stored === 'true';
     return !localStorage.getItem('GEMINI_API_KEY'); // default to mock if no API key
   });
+  const [unsplashAccessKey, setUnsplashAccessKey] = useState<string>(() => localStorage.getItem('UNSPLASH_ACCESS_KEY') || '');
   const [showSettings, setShowSettings] = useState<boolean>(false);
 
   const handleSetApiKey = (key: string) => {
@@ -55,6 +56,12 @@ export default function App() {
   const handleSetUseMock = (mock: boolean) => {
     localStorage.setItem('GEMINI_USE_MOCK', mock.toString());
     setUseMock(mock);
+  };
+
+  const handleSetUnsplashAccessKey = (key: string) => {
+    const trimmed = key.trim();
+    localStorage.setItem('UNSPLASH_ACCESS_KEY', trimmed);
+    setUnsplashAccessKey(trimmed);
   };
   
   // Viewfinder configurations
@@ -160,7 +167,11 @@ export default function App() {
         <section className="lg:col-span-3 space-y-6 flex flex-col">
           {/* Practice Image selector */}
           <div className="glass-panel p-5 rounded-2xl">
-            <ImageSelector onSelectImage={handleSelectImage} currentImageUrl={imageUrl} />
+            <ImageSelector 
+              onSelectImage={handleSelectImage} 
+              currentImageUrl={imageUrl} 
+              unsplashAccessKey={unsplashAccessKey}
+            />
           </div>
 
           {/* Viewfinder Controls & Aspect Ratios */}
@@ -383,6 +394,8 @@ export default function App() {
         setTemperature={handleSetTemperature}
         useMock={useMock}
         setUseMock={handleSetUseMock}
+        unsplashAccessKey={unsplashAccessKey}
+        setUnsplashAccessKey={handleSetUnsplashAccessKey}
       />
     </div>
   );

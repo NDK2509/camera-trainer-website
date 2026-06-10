@@ -26,6 +26,8 @@ interface SettingsModalProps {
   setTemperature: (temp: number) => void;
   useMock: boolean;
   setUseMock: (useMock: boolean) => void;
+  unsplashAccessKey: string;
+  setUnsplashAccessKey: (key: string) => void;
 }
 
 const MODELS_LIST = [
@@ -66,8 +68,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   setTemperature,
   useMock,
   setUseMock,
+  unsplashAccessKey,
+  setUnsplashAccessKey,
 }) => {
   const [showKey, setShowKey] = useState(false);
+  const [showUnsplashKey, setShowUnsplashKey] = useState(false);
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [testMessage, setTestMessage] = useState('');
   const modalRef = useRef<HTMLDivElement>(null);
@@ -128,10 +133,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       } else {
         throw new Error('Received empty response from Gemini API.');
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('API key validation error:', err);
       setTestStatus('error');
-      setTestMessage(err?.message || 'Authentication failed. Please verify your API key.');
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      setTestMessage(errorMessage || 'Authentication failed. Please verify your API key.');
     }
   };
 
@@ -360,6 +366,48 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
             </div>
           )}
+
+          {/* Unsplash Search Settings */}
+          <div className="space-y-4 border-t border-neutral-900 pt-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Key size={12} className="text-teal-400" />
+                Unsplash API Access Key (Optional)
+              </label>
+              <div className="relative">
+                <input
+                  type={showUnsplashKey ? 'text' : 'password'}
+                  value={unsplashAccessKey}
+                  onChange={(e) => setUnsplashAccessKey(e.target.value)}
+                  placeholder="Enter your Unsplash Access Key"
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-lg pl-3 pr-10 py-2 text-xs text-neutral-200 focus:outline-none focus:border-teal-500 transition-colors"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowUnsplashKey(!showUnsplashKey)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300"
+                >
+                  {showUnsplashKey ? <EyeOff size={14} /> : <Eye size={14} />}
+                </button>
+              </div>
+
+              {/* Unsplash Key Help */}
+              <p className="text-[10px] text-neutral-500 leading-normal flex items-start gap-1">
+                <HelpCircle size={10} className="shrink-0 mt-0.5" />
+                <span>
+                  By default, custom scenes are searched via Wikimedia Commons. For professional-grade stock photography search results, enter a free{' '}
+                  <a 
+                    href="https://unsplash.com/developers" 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="text-teal-400 hover:underline inline-flex items-center"
+                  >
+                    Unsplash Access Key
+                  </a>.
+                </span>
+              </p>
+            </div>
+          </div>
 
         </div>
 

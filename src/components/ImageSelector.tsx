@@ -57,9 +57,81 @@ const PRESETS: PresetCategory[] = [
 interface ImageSelectorProps {
   onSelectImage: (url: string, description: string) => void;
   currentImageUrl: string;
+  unsplashAccessKey?: string;
 }
 
-export const ImageSelector: React.FC<ImageSelectorProps> = ({ onSelectImage, currentImageUrl }) => {
+// Search Wikimedia Commons API for images (CORS-friendly, no key required)
+async function searchWikimedia(query: string): Promise<{ url: string; description: string }> {
+  const searchUrl = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch=${encodeURIComponent(query)}&gsrlimit=20&prop=imageinfo&iiprop=url&format=json&origin=*`;
+  const res = await fetch(searchUrl);
+  if (!res.ok) {
+    throw new Error(`Wikimedia search failed with status ${res.status}`);
+  }
+  const data = await res.json();
+  const pages = data?.query?.pages;
+  if (!pages) {
+    throw new Error("No images found on Wikimedia Commons for this prompt.");
+  }
+  
+  interface WikimediaPage {
+    title: string;
+    imageinfo?: Array<{ url: string }>;
+  }
+
+  // Filter for common photo types (jpg, jpeg, png, webp) and avoid svgs, pdfs, etc.
+  const pageList = Object.values(pages) as WikimediaPage[];
+  const validPages = pageList.filter(page => {
+    const url = page.imageinfo?.[0]?.url || '';
+    return /\.(jpe?g|png|webp)$/i.test(url);
+  });
+
+  if (validPages.length === 0) {
+    throw new Error("No photo images found in Wikimedia results.");
+  }
+
+  // Pick a random image from the matches to provide a dynamic experience
+  const randomIndex = Math.floor(Math.random() * validPages.length);
+  const selectedPage = validPages[randomIndex];
+  const url = selectedPage.imageinfo?.[0]?.url || '';
+  const title = selectedPage.title.replace(/^File:/, '').replace(/\.[^/.]+$/, ""); // clean filename
+  
+  return {
+    url,
+    description: `Wikimedia photo: ${title}`
+  };
+}
+
+// Search official Unsplash API (CORS-friendly, requires access key)
+async function searchUnsplash(query: string, accessKey: string): Promise<{ url: string; description: string }> {
+  const searchUrl = `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=15&client_id=${accessKey}`;
+  const res = await fetch(searchUrl);
+  if (!res.ok) {
+    throw new Error(`Unsplash API search failed with status ${res.status}`);
+  }
+  const data = await res.json();
+  const results = data?.results || [];
+  if (results.length === 0) {
+    throw new Error("No images found on Unsplash for this prompt.");
+  }
+
+  // Select a random image from top results to keep the prompt search generative
+  const randomIndex = Math.floor(Math.random() * Math.min(results.length, 10));
+  const photo = results[randomIndex];
+  const url = photo.urls.regular;
+  const description = photo.description || photo.alt_description || `Unsplash photo of ${query}`;
+  const author = photo.user?.name || 'Unsplash Photographer';
+  
+  return {
+    url,
+    description: `${description} (by ${author} via Unsplash)`
+  };
+}
+
+export const ImageSelector: React.FC<ImageSelectorProps> = ({ 
+  onSelectImage, 
+  currentImageUrl,
+  unsplashAccessKey
+}) => {
   const [prompt, setPrompt] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -68,13 +140,35 @@ export const ImageSelector: React.FC<ImageSelectorProps> = ({ onSelectImage, cur
     if (!prompt.trim()) return;
 
     setIsLoading(true);
+    const cleanedPrompt = prompt.trim();
+    const sig = Math.floor(Math.random() * 10000);
+
     try {
-      // Fetch a high-quality search photo from Unsplash source matching the prompt
-      const query = encodeURIComponent(prompt.trim());
-      const randomId = Math.floor(Math.random() * 10000);
-      const url = `https://images.unsplash.com/featured/1200x800/?${query}&sig=${randomId}`;
-      
-      onSelectImage(url, `Generated photo representing: "${prompt}"`);
+      let result: { url: string; description: string } | null = null;
+
+      if (unsplashAccessKey) {
+        try {
+          result = await searchUnsplash(cleanedPrompt, unsplashAccessKey);
+        } catch (unsplashError) {
+          console.warn("Unsplash API search failed, falling back to Wikimedia Commons:", unsplashError);
+        }
+      }
+
+      if (!result) {
+        try {
+          result = await searchWikimedia(cleanedPrompt);
+        } catch (wikimediaError) {
+          console.warn("Wikimedia Commons search failed, falling back to Picsum Photos:", wikimediaError);
+        }
+      }
+
+      if (result) {
+        onSelectImage(result.url, result.description);
+      } else {
+        // Fallback to Lorem Picsum random image
+        const fallbackUrl = `https://picsum.photos/1200/800?sig=${sig}`;
+        onSelectImage(fallbackUrl, `Random fallback photo representing: "${cleanedPrompt}"`);
+      }
     } catch (error) {
       console.error("Failed to generate image:", error);
     } finally {
