@@ -73,6 +73,7 @@ export default function App() {
   // Crop coordinates (as percent of image element size)
   const [box, setBox] = useState({ x: 10, y: 10, width: 60, height: 40 });
   const [croppedBase64, setCroppedBase64] = useState<string | null>(null);
+  const [isSubmittedForReview, setIsSubmittedForReview] = useState<boolean>(false);
   const [shutterFlash, setShutterFlash] = useState(false);
 
   const imageRef = useRef<HTMLImageElement>(null);
@@ -111,12 +112,14 @@ export default function App() {
     // Convert crop to base64 jpeg
     const base64 = canvas.toDataURL('image/jpeg', 0.9);
     setCroppedBase64(base64);
+    setIsSubmittedForReview(false);
   };
 
   const handleSelectImage = (url: string, description: string) => {
     setImageUrl(url);
     setImageDescription(description);
     setCroppedBase64(null);
+    setIsSubmittedForReview(false);
   };
 
   const rotateSpiral = () => {
@@ -348,17 +351,49 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Gemini visual critique panel */}
-                <GeminiFeedback
-                  croppedImageBase64={croppedBase64}
-                  activeComposition={composition}
-                  onClear={() => setCroppedBase64(null)}
-                  apiKey={apiKey}
-                  model={model}
-                  temperature={temperature}
-                  useMock={useMock}
-                  onOpenSettings={() => setShowSettings(true)}
-                />
+                {!isSubmittedForReview ? (
+                  <div className="glass-panel p-4 rounded-xl space-y-4 border border-teal-500/20 bg-teal-950/5 animate-fade-in">
+                    <div className="space-y-1">
+                      <h4 className="text-xs font-bold text-neutral-200">Ready for review?</h4>
+                      <p className="text-[11px] text-neutral-400 leading-relaxed">
+                        Verify your layout using the <span className="text-teal-400 font-semibold">{composition === 'none' ? 'no grid' : composition.replace('-', ' ')}</span> guideline. If you are satisfied with your framing, click below to submit it to the AI reviewer.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col gap-2 pt-1">
+                      <button
+                        onClick={() => setIsSubmittedForReview(true)}
+                        className="w-full bg-teal-500 hover:bg-teal-400 text-neutral-950 font-bold py-2 px-3 rounded-lg text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-teal-500/15"
+                      >
+                        <Sparkles size={14} />
+                        Send to AI Reviewer
+                      </button>
+                      <button
+                        onClick={() => {
+                          setCroppedBase64(null);
+                          setIsSubmittedForReview(false);
+                        }}
+                        className="w-full bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-neutral-400 hover:text-neutral-200 font-semibold py-2 px-3 rounded-lg text-xs transition-colors cursor-pointer"
+                      >
+                        Discard & Retake
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <GeminiFeedback
+                    croppedImageBase64={croppedBase64}
+                    activeComposition={composition}
+                    onClear={() => {
+                      setCroppedBase64(null);
+                      setIsSubmittedForReview(false);
+                    }}
+                    apiKey={apiKey}
+                    model={model}
+                    temperature={temperature}
+                    useMock={useMock}
+                    onOpenSettings={() => setShowSettings(true)}
+                  />
+                )}
               </div>
             ) : (
               <div className="h-64 flex flex-col items-center justify-center text-center p-4 border border-dashed border-neutral-800 rounded-xl space-y-3">
