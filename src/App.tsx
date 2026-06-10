@@ -339,11 +339,6 @@ export default function App() {
           {/* Interactive Viewfinder Sandbox */}
           <div className="w-full flex-1 glass-panel rounded-3xl p-4 flex flex-col justify-center items-center min-h-[350px] relative overflow-hidden">
 
-            {/* Camera Shutter Flash Overlay */}
-            {shutterFlash && (
-              <div className="absolute inset-0 bg-white z-20 animate-shutter pointer-events-none" />
-            )}
-
             {/* Target Interactive Image Box */}
             <div className="relative max-w-full max-h-[500px] rounded-lg shadow-2xl">
               <img
@@ -364,6 +359,11 @@ export default function App() {
                 box={box}
                 setBox={setBox}
               />
+
+              {/* Camera Shutter Flash Overlay */}
+              {shutterFlash && (
+                <div className="absolute inset-0 bg-white z-20 animate-shutter pointer-events-none rounded-lg" />
+              )}
 
               {/* AI Hint Overlay Card */}
               {hintText && (
