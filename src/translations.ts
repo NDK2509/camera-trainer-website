@@ -74,6 +74,7 @@ export const translations = {
     presetPortrait: "Studio Portrait",
     presetStairs: "Minimalist Stairs",
     presetMacro: "Water Droplets",
+    showBestFraming: "Show Best Framing Example",
   },
   vi: {
     title: "Trình Huấn Luyện Bố Cục Ảnh AI",
@@ -150,6 +151,7 @@ export const translations = {
     presetPortrait: "Chân Dung Studio",
     presetStairs: "Cầu Thang Tối Giản",
     presetMacro: "Giọt Nước Siêu Cận",
+    showBestFraming: "Xem Bố Cục Đẹp Nhất",
   }
 };
 

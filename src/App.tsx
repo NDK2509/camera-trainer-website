@@ -17,6 +17,17 @@ import {
   Lightbulb
 } from 'lucide-react';
 
+interface HintData {
+  hint: string;
+  recommendedCrop?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    composition: string;
+  };
+}
+
 export default function App() {
   // Language State
   const [language, setLanguage] = useState<Language>(() => {
@@ -95,7 +106,7 @@ export default function App() {
   const [croppedBase64, setCroppedBase64] = useState<string | null>(null);
   const [isSubmittedForReview, setIsSubmittedForReview] = useState<boolean>(false);
   const [shutterFlash, setShutterFlash] = useState(false);
-  const [hintText, setHintText] = useState<string | null>(null);
+  const [hintData, setHintData] = useState<HintData | null>(null);
   const [hintLoading, setHintLoading] = useState<boolean>(false);
 
   const imageRef = useRef<HTMLImageElement>(null);
@@ -103,11 +114,15 @@ export default function App() {
   const getHint = async () => {
     if (!imageRef.current) return;
     setHintLoading(true);
-    setHintText(null);
+    setHintData(null);
 
     if (useMock || !apiKey) {
       if (!useMock && !apiKey) {
-        alert('Gemini API key is required. Please set it in Settings, or toggle Simulator Mode to run offline.');
+        alert(
+          language === 'vi'
+            ? 'Yêu cầu API key Gemini. Vui lòng thiết lập trong Cài đặt, hoặc kích hoạt Chế Độ Giả Lập để chạy ngoại tuyến.'
+            : 'Gemini API key is required. Please set it in Settings, or toggle Simulator Mode to run offline.'
+        );
         setHintLoading(false);
         return;
       }
@@ -115,15 +130,31 @@ export default function App() {
       await new Promise((resolve) => setTimeout(resolve, 1500));
 
       let mockHint = "Try using the Rule of Thirds to position the main subject at one of the intersections. Keep the horizon line along the lower grid line to emphasize the sky, or the upper grid line to emphasize the foreground.";
+      let mockCrop = { x: 25, y: 25, width: 50, height: 50, composition: 'thirds' };
+
       if (imageDescription.toLowerCase().includes('banana')) {
-        mockHint = "For this minimalist banana shot, try placing the banana along the bottom-right intersection of the Rule of Thirds grid. Emphasize the negative space around it to create a clean, modern aesthetic.";
-      } else if (imageDescription.toLowerCase().includes('plant') || imageDescription.toLowerCase().includes('leaf')) {
-        mockHint = "Focus on the organic curves of the leaves. Utilize Golden Spiral (Fibonacci) starting from the center leaf cluster, wrapping outwards to draw the viewer's eye into the depth of the plant.";
+        mockHint = language === 'vi' 
+          ? "Đối với bức ảnh quả chuối tối giản này, hãy thử đặt quả chuối dọc theo điểm giao nhau bên dưới bên phải của lưới Quy Tắc 1/3. Nhấn mạnh khoảng trống xung quanh để tạo tính thẩm mỹ sạch sẽ, hiện đại."
+          : "For this minimalist banana shot, try placing the banana along the bottom-right intersection of the Rule of Things grid. Emphasize the negative space around it to create a clean, modern aesthetic.";
+        mockCrop = { x: 20, y: 15, width: 60, height: 60, composition: 'thirds' };
+      } else if (imageDescription.toLowerCase().includes('landscape') || imageDescription.toLowerCase().includes('mountain') || imageDescription.toLowerCase().includes('lake')) {
+        mockHint = language === 'vi'
+          ? "Hãy thử đặt hình phản chiếu của các đỉnh núi dọc theo đường nằm ngang bên dưới của Lưới Phi (Tỷ Lệ Vàng), và căn chỉnh đường chân trời của hồ với đường nằm ngang phía trên."
+          : "Try placing the reflection of the mountain peaks along the lower horizontal line of the Phi Grid, and align the lake horizon with the upper horizontal line to emphasize the scenery.";
+        mockCrop = { x: 10, y: 20, width: 80, height: 60, composition: 'phi' };
       } else if (imageDescription.toLowerCase().includes('street') || imageDescription.toLowerCase().includes('road') || imageDescription.toLowerCase().includes('city')) {
-        mockHint = "Use the Leading Lines grid. Align the road or street boundaries to converge towards the center-right power point, pulling the viewer's eye through the urban environment.";
+        mockHint = language === 'vi'
+          ? "Căn chỉnh các ranh giới đường neon hội tụ về điểm biến mất trung tâm của hướng dẫn Đường Dẫn Hướng để hút mắt người xem vào chiều sâu của đường phố."
+          : "Align the neon road boundaries to converge towards the center vanishing point of the Leading Lines guide to draw the viewer's eye into the depth of the city street.";
+        mockCrop = { x: 15, y: 10, width: 70, height: 80, composition: 'leading' };
+      } else if (language === 'vi') {
+        mockHint = "Hãy thử đặt chủ thể chính tại một trong các giao điểm của lưới Quy Tắc 1/3 để tạo ra một bố cục cân đối.";
       }
 
-      setHintText(mockHint);
+      setHintData({
+        hint: mockHint,
+        recommendedCrop: mockCrop
+      });
       setHintLoading(false);
       return;
     }
@@ -156,15 +187,54 @@ export default function App() {
         You are an expert photography instructor. I am showing you this base image.
         Provide a concise, helpful composition hint to a student who is learning how to frame a crop of this photo.
         Suggest the best composition rule to use (e.g. rule of thirds, symmetry, spiral, leading lines) and describe exactly where they should place their crop box for a beautiful photograph.
-        Keep the hint short, actionable, and limited to 2-3 inspiring sentences.
-        IMPORTANT: Write the response in the following language: ${language === 'vi' ? 'Vietnamese (Tiếng Việt)' : 'English'}.
+        
+        You MUST reply ONLY with a valid JSON block containing the following fields:
+        {
+          "hint": "A short, actionable description of the composition recommendation (max 3 sentences)",
+          "recommendedCrop": {
+            "x": a number from 0 to 80 representing the crop box left offset in percentage,
+            "y": a number from 0 to 80 representing the crop box top offset in percentage,
+            "width": a number from 15 to 100 representing the width of the crop box in percentage,
+            "height": a number from 15 to 100 representing the height of the crop box in percentage,
+            "composition": "the best guide key to use: one of 'thirds', 'phi', 'spiral', 'leading', 'symmetry', 'triangles'"
+          }
+        }
+        
+        Ensure your reply is pure JSON so it can be parsed programmatically. Do not include markdown code block syntax.
+        IMPORTANT: Write the "hint" text in the following language: ${language === 'vi' ? 'Vietnamese (Tiếng Việt)' : 'English'}.
       `;
 
       const response = await modelInstance.generateContent([prompt, imagePart]);
-      setHintText(response.response.text().trim());
+      const responseText = response.response.text();
+      const cleanJson = responseText
+        .replace(/```json/g, '')
+        .replace(/```/g, '')
+        .trim();
+
+      try {
+        const parsed = JSON.parse(cleanJson);
+        if (parsed && typeof parsed.hint === 'string') {
+          setHintData({
+            hint: parsed.hint,
+            recommendedCrop: parsed.recommendedCrop ? {
+              x: Number(parsed.recommendedCrop.x),
+              y: Number(parsed.recommendedCrop.y),
+              width: Number(parsed.recommendedCrop.width),
+              height: Number(parsed.recommendedCrop.height),
+              composition: String(parsed.recommendedCrop.composition || 'thirds')
+            } : undefined
+          });
+        } else {
+          throw new Error("Invalid format");
+        }
+      } catch (err) {
+        setHintData({
+          hint: responseText
+        });
+      }
     } catch (err: any) {
       console.error('Failed to get hint:', err);
-      alert(err?.message || 'An error occurred while getting the AI hint.');
+      alert(err?.message || (language === 'vi' ? 'Đã xảy ra lỗi khi tải gợi ý từ AI.' : 'An error occurred while getting the AI hint.'));
     } finally {
       setHintLoading(false);
     }
@@ -212,7 +282,7 @@ export default function App() {
     setImageDescription(description);
     setCroppedBase64(null);
     setIsSubmittedForReview(false);
-    setHintText(null);
+    setHintData(null);
   };
 
   const rotateSpiral = () => {
@@ -405,23 +475,44 @@ export default function App() {
               )}
 
               {/* AI Hint Overlay Card */}
-              {hintText && (
-                <div className="absolute inset-x-4 bottom-4 bg-gradient-to-t from-amber-950/20 to-neutral-900/95 border border-amber-500/30 p-4 rounded-xl shadow-2xl backdrop-blur-md z-20 animate-fade-in space-y-2">
+              {hintData && (
+                <div className="absolute inset-x-4 bottom-4 bg-gradient-to-t from-amber-950/20 to-neutral-900/95 border border-amber-500/30 p-4 rounded-xl shadow-2xl backdrop-blur-md z-20 animate-fade-in space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5 text-amber-400 font-bold text-xs">
                       <Lightbulb size={14} className="text-amber-400 animate-pulse" />
                       <span>💡 AI {t.aiHint}</span>
                     </div>
                     <button
-                      onClick={() => setHintText(null)}
+                      onClick={() => setHintData(null)}
                       className="text-neutral-500 hover:text-neutral-300 text-xs font-bold px-1.5 py-0.5 hover:bg-neutral-900 rounded transition-colors cursor-pointer"
                     >
                       ✕
                     </button>
                   </div>
                   <p className="text-[11px] text-neutral-300 leading-relaxed italic">
-                    "{hintText}"
+                    "{hintData.hint}"
                   </p>
+                  {hintData.recommendedCrop && (
+                    <button
+                      onClick={() => {
+                        if (hintData.recommendedCrop) {
+                          setBox({
+                            x: hintData.recommendedCrop.x,
+                            y: hintData.recommendedCrop.y,
+                            width: hintData.recommendedCrop.width,
+                            height: hintData.recommendedCrop.height
+                          });
+                          if (hintData.recommendedCrop.composition) {
+                            setComposition(hintData.recommendedCrop.composition as any);
+                          }
+                        }
+                      }}
+                      className="w-full py-1.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 rounded-lg text-[10px] font-bold transition-all flex items-center justify-center gap-1.5 shadow-md active:scale-95 cursor-pointer"
+                    >
+                      <Sparkles size={11} />
+                      {t.showBestFraming}
+                    </button>
+                  )}
                 </div>
               )}
             </div>
