@@ -127,7 +127,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-neutral-950 flex flex-col relative select-none">
+    <div className="min-h-screen bg-neutral-950 flex flex-col relative">
       {/* Top Navbar */}
       <header className="border-b border-neutral-900 bg-neutral-950/80 backdrop-blur-md px-6 py-4 flex items-center justify-between sticky top-0 z-30">
         <div className="flex items-center gap-3">
@@ -312,26 +312,42 @@ export default function App() {
             </div>
           </div>
 
-          {/* Shutter Button trigger */}
-          <button
-            onClick={takeShot}
-            disabled={croppedBase64 !== null}
-            className={`w-20 h-20 rounded-full border-4 border-neutral-800 flex items-center justify-center p-1 transition-all ${
-              croppedBase64
-                ? 'opacity-30 cursor-not-allowed scale-95'
-                : 'hover:border-teal-400 active:scale-95 bg-neutral-900 shadow-[0_0_15px_rgba(20,184,166,0.1)]'
-            }`}
-            title="Snap framing & analyze composition"
-          >
-            <div className="w-full h-full rounded-full bg-teal-500 hover:bg-teal-400 flex items-center justify-center text-neutral-950 transition-colors">
-              <Camera size={28} />
-            </div>
-          </button>
+          {/* Shutter Button trigger with Retake next to it */}
+          <div className="relative flex items-center justify-center w-full py-2">
+            <button
+              onClick={takeShot}
+              disabled={croppedBase64 !== null}
+              className={`w-20 h-20 rounded-full border-4 border-neutral-800 flex items-center justify-center p-1 transition-all shrink-0 ${
+                croppedBase64
+                  ? 'opacity-30 cursor-not-allowed scale-95'
+                  : 'hover:border-teal-400 active:scale-95 bg-neutral-900 shadow-[0_0_15px_rgba(20,184,166,0.1)]'
+              }`}
+              title="Snap framing & analyze composition"
+            >
+              <div className="w-full h-full rounded-full bg-teal-500 hover:bg-teal-400 flex items-center justify-center text-neutral-950 transition-colors">
+                <Camera size={28} />
+              </div>
+            </button>
+
+            {croppedBase64 && (
+              <button
+                onClick={() => {
+                  setCroppedBase64(null);
+                  setIsSubmittedForReview(false);
+                }}
+                className="absolute left-1/2 ml-14 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-neutral-400 hover:text-white px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer shadow-lg animate-fade-in"
+                title="Reset viewfinder to take another shot"
+              >
+                <RotateCw size={13} />
+                Retake
+              </button>
+            )}
+          </div>
         </section>
 
         {/* Right Sidebar: Snapshot & AI Critique */}
         <section className="lg:col-span-3 space-y-6">
-          <div className="glass-panel p-5 rounded-2xl space-y-5 min-h-[400px]">
+          <div className="glass-panel p-5 rounded-2xl space-y-5 min-h-[400px] lg:max-h-[calc(100vh-120px)] overflow-y-auto">
             <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400 flex items-center gap-1.5">
               <Crop size={14} className="text-teal-400" />
               Framing & Critique

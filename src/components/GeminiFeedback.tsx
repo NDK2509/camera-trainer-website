@@ -254,16 +254,6 @@ export const GeminiFeedback: React.FC<GeminiFeedbackProps> = ({
               "{result.actionableTip}"
             </p>
           </div>
-
-          {/* General Summary */}
-          <div className="text-center">
-            <button
-              onClick={onClear}
-              className="text-xs text-neutral-500 hover:text-white underline transition-colors"
-            >
-              Reset Viewfinder for Another Shot
-            </button>
-          </div>
         </div>
       )}
     </div>
