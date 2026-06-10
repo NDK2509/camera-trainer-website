@@ -32,27 +32,27 @@ interface SettingsModalProps {
 
 const MODELS_LIST = [
   { 
-    id: 'gemini-2.5-flash', 
-    name: 'Gemini 2.5 Flash', 
-    desc: 'Default model. Extremely fast, highly intelligent, and optimizes performance for composition critique.', 
+    id: 'gemini-3.5-flash', 
+    name: 'Gemini 3.5 Flash', 
+    desc: 'Default model. Extremely fast, highly intelligent, and optimized for agentic workflows and composition critique.', 
     recommended: true 
   },
   { 
-    id: 'gemini-2.5-pro', 
-    name: 'Gemini 2.5 Pro', 
+    id: 'gemini-3.5-pro', 
+    name: 'Gemini 3.5 Pro', 
     desc: 'Best for advanced artistic interpretation. Provides deeper, more comprehensive feedback but may take longer.', 
     recommended: false 
   },
   { 
-    id: 'gemini-1.5-flash', 
-    name: 'Gemini 1.5 Flash', 
-    desc: 'Legacy fast model. Good general capabilities.', 
+    id: 'gemini-2.5-flash', 
+    name: 'Gemini 2.5 Flash', 
+    desc: 'Previous generation fast model. Good general capabilities.', 
     recommended: false 
   },
   { 
-    id: 'gemini-1.5-pro', 
-    name: 'Gemini 1.5 Pro', 
-    desc: 'Legacy pro model. High performance for complex reasoning.', 
+    id: 'gemini-2.5-pro', 
+    name: 'Gemini 2.5 Pro', 
+    desc: 'Previous generation pro model. High performance for complex reasoning.', 
     recommended: false 
   },
 ];

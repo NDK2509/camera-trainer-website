@@ -22,7 +22,12 @@ export default function App() {
 
   // AI Configuration State
   const [apiKey, setApiKey] = useState<string>(() => localStorage.getItem('GEMINI_API_KEY') || '');
-  const [model, setModel] = useState<string>(() => localStorage.getItem('GEMINI_MODEL') || 'gemini-2.5-flash');
+  const [model, setModel] = useState<string>(() => {
+    const saved = localStorage.getItem('GEMINI_MODEL');
+    if (saved === 'gemini-1.5-flash' || saved === 'gemini-2.0-flash' || saved === 'gemini-3.0-flash') return 'gemini-3.5-flash';
+    if (saved === 'gemini-1.5-pro' || saved === 'gemini-2.0-pro' || saved === 'gemini-3.0-pro') return 'gemini-3.5-pro';
+    return saved || 'gemini-3.5-flash';
+  });
   const [temperature, setTemperature] = useState<number>(() => {
     const stored = localStorage.getItem('GEMINI_TEMPERATURE');
     return stored ? parseFloat(stored) : 0.4;
