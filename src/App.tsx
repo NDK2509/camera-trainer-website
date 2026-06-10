@@ -1,23 +1,25 @@
 import { useState, useRef } from 'react';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Viewfinder } from './components/Viewfinder';
 import { ImageSelector } from './components/ImageSelector';
 import { GeminiFeedback } from './components/GeminiFeedback';
 import { SettingsModal } from './components/SettingsModal';
 import type { CompositionType } from './components/CompositionOverlays';
-import { 
-  Camera, 
-  RotateCw, 
-  Crop, 
-  Maximize2, 
-  Sliders, 
+import {
+  Camera,
+  RotateCw,
+  Crop,
+  Maximize2,
+  Sliders,
   Sparkles,
-  Settings
+  Settings,
+  Lightbulb
 } from 'lucide-react';
 
 export default function App() {
   const [imageUrl, setImageUrl] = useState<string>('https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?auto=format&fit=crop&w=1200&q=80');
   const [imageDescription, setImageDescription] = useState<string>('A vibrant banana on a solid background, great for minimalist composition.');
-  
+
   // AI Configuration State
   const [apiKey, setApiKey] = useState<string>(() => localStorage.getItem('GEMINI_API_KEY') || '');
   const [model, setModel] = useState<string>(() => localStorage.getItem('GEMINI_MODEL') || 'gemini-2.5-flash');
@@ -63,20 +65,91 @@ export default function App() {
     localStorage.setItem('UNSPLASH_ACCESS_KEY', trimmed);
     setUnsplashAccessKey(trimmed);
   };
-  
+
   // Viewfinder configurations
   const [composition, setComposition] = useState<CompositionType>('thirds');
   const [aspectRatio, setAspectRatio] = useState<string>('3:2');
   const [orientation, setOrientation] = useState<'horizontal' | 'vertical'>('horizontal');
   const [spiralRotation, setSpiralRotation] = useState<number>(0);
-  
+
   // Crop coordinates (as percent of image element size)
   const [box, setBox] = useState({ x: 10, y: 10, width: 60, height: 40 });
   const [croppedBase64, setCroppedBase64] = useState<string | null>(null);
   const [isSubmittedForReview, setIsSubmittedForReview] = useState<boolean>(false);
   const [shutterFlash, setShutterFlash] = useState(false);
+  const [hintText, setHintText] = useState<string | null>(null);
+  const [hintLoading, setHintLoading] = useState<boolean>(false);
 
   const imageRef = useRef<HTMLImageElement>(null);
+
+  const getHint = async () => {
+    if (!imageRef.current) return;
+    setHintLoading(true);
+    setHintText(null);
+
+    if (useMock || !apiKey) {
+      if (!useMock && !apiKey) {
+        alert('Gemini API key is required. Please set it in Settings, or toggle Simulator Mode to run offline.');
+        setHintLoading(false);
+        return;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      let mockHint = "Try using the Rule of Thirds to position the main subject at one of the intersections. Keep the horizon line along the lower grid line to emphasize the sky, or the upper grid line to emphasize the foreground.";
+      if (imageDescription.toLowerCase().includes('banana')) {
+        mockHint = "For this minimalist banana shot, try placing the banana along the bottom-right intersection of the Rule of Thirds grid. Emphasize the negative space around it to create a clean, modern aesthetic.";
+      } else if (imageDescription.toLowerCase().includes('plant') || imageDescription.toLowerCase().includes('leaf')) {
+        mockHint = "Focus on the organic curves of the leaves. Utilize Golden Spiral (Fibonacci) starting from the center leaf cluster, wrapping outwards to draw the viewer's eye into the depth of the plant.";
+      } else if (imageDescription.toLowerCase().includes('street') || imageDescription.toLowerCase().includes('road') || imageDescription.toLowerCase().includes('city')) {
+        mockHint = "Use the Leading Lines grid. Align the road or street boundaries to converge towards the center-right power point, pulling the viewer's eye through the urban environment.";
+      }
+
+      setHintText(mockHint);
+      setHintLoading(false);
+      return;
+    }
+
+    try {
+      const img = imageRef.current;
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error("Could not create canvas context");
+      ctx.drawImage(img, 0, 0);
+      const base64 = canvas.toDataURL('image/jpeg', 0.85);
+      const base64Data = base64.split(',')[1];
+
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const modelInstance = genAI.getGenerativeModel({
+        model: model,
+        generationConfig: { temperature: 0.5 }
+      });
+
+      const imagePart = {
+        inlineData: {
+          data: base64Data,
+          mimeType: 'image/jpeg',
+        },
+      };
+
+      const prompt = `
+        You are an expert photography instructor. I am showing you this base image.
+        Provide a concise, helpful composition hint to a student who is learning how to frame a crop of this photo.
+        Suggest the best composition rule to use (e.g. rule of thirds, symmetry, spiral, leading lines) and describe exactly where they should place their crop box for a beautiful photograph.
+        Keep the hint short, actionable, and limited to 2-3 inspiring sentences.
+      `;
+
+      const response = await modelInstance.generateContent([prompt, imagePart]);
+      setHintText(response.response.text().trim());
+    } catch (err: any) {
+      console.error('Failed to get hint:', err);
+      alert(err?.message || 'An error occurred while getting the AI hint.');
+    } finally {
+      setHintLoading(false);
+    }
+  };
 
   // Trigger camera shutter and slice/crop coordinates into base64
   const takeShot = () => {
@@ -87,7 +160,7 @@ export default function App() {
     setTimeout(() => setShutterFlash(false), 250);
 
     const img = imageRef.current;
-    
+
     // Create offscreen canvas to perform precise crop
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
@@ -120,6 +193,7 @@ export default function App() {
     setImageDescription(description);
     setCroppedBase64(null);
     setIsSubmittedForReview(false);
+    setHintText(null);
   };
 
   const rotateSpiral = () => {
@@ -145,14 +219,13 @@ export default function App() {
             <Sparkles size={13} className="text-teal-400" />
             <span>AI: {useMock ? 'Simulator' : model.replace('gemini-', '').replace('-', ' ').toUpperCase()}</span>
           </div>
-          
+
           <button
             onClick={() => setShowSettings(true)}
-            className={`p-2 rounded-xl border transition-all flex items-center gap-2 text-xs font-semibold cursor-pointer relative ${
-              !apiKey && !useMock
+            className={`p-2 rounded-xl border transition-all flex items-center gap-2 text-xs font-semibold cursor-pointer relative ${!apiKey && !useMock
                 ? 'bg-amber-500/10 border-amber-500/40 text-amber-400 animate-pulse hover:bg-amber-500/20'
                 : 'bg-neutral-900 border-neutral-850 text-neutral-300 hover:border-neutral-700 hover:text-white'
-            }`}
+              }`}
             title="Configure API Key & Models"
           >
             <Settings size={15} className={useMock ? '' : 'animate-spin-slow'} />
@@ -170,9 +243,9 @@ export default function App() {
         <section className="lg:col-span-3 space-y-6 flex flex-col">
           {/* Practice Image selector */}
           <div className="glass-panel p-5 rounded-2xl">
-            <ImageSelector 
-              onSelectImage={handleSelectImage} 
-              currentImageUrl={imageUrl} 
+            <ImageSelector
+              onSelectImage={handleSelectImage}
+              currentImageUrl={imageUrl}
               unsplashAccessKey={unsplashAccessKey}
             />
           </div>
@@ -192,11 +265,10 @@ export default function App() {
                   <button
                     key={ratio}
                     onClick={() => setAspectRatio(ratio)}
-                    className={`py-1.5 text-xs font-semibold rounded-lg border transition-all ${
-                      aspectRatio === ratio
+                    className={`py-1.5 text-xs font-semibold rounded-lg border transition-all ${aspectRatio === ratio
                         ? 'bg-teal-500 text-neutral-950 border-teal-500'
                         : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:border-neutral-700'
-                    }`}
+                      }`}
                   >
                     {ratio}
                   </button>
@@ -210,22 +282,20 @@ export default function App() {
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => setOrientation('horizontal')}
-                  className={`py-2 text-xs font-semibold rounded-lg border flex items-center justify-center gap-1.5 transition-all ${
-                    orientation === 'horizontal'
+                  className={`py-2 text-xs font-semibold rounded-lg border flex items-center justify-center gap-1.5 transition-all ${orientation === 'horizontal'
                       ? 'bg-neutral-800 border-teal-500/50 text-teal-400'
                       : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:border-neutral-700'
-                  }`}
+                    }`}
                 >
                   <Maximize2 size={13} className="rotate-90" />
                   Horizontal
                 </button>
                 <button
                   onClick={() => setOrientation('vertical')}
-                  className={`py-2 text-xs font-semibold rounded-lg border flex items-center justify-center gap-1.5 transition-all ${
-                    orientation === 'vertical'
+                  className={`py-2 text-xs font-semibold rounded-lg border flex items-center justify-center gap-1.5 transition-all ${orientation === 'vertical'
                       ? 'bg-neutral-800 border-teal-500/50 text-teal-400'
                       : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:border-neutral-700'
-                  }`}
+                    }`}
                 >
                   <Maximize2 size={13} />
                   Vertical
@@ -251,11 +321,10 @@ export default function App() {
               <button
                 key={g.id}
                 onClick={() => setComposition(g.id as CompositionType)}
-                className={`px-3 py-1.5 text-xs rounded-lg transition-all shrink-0 font-medium ${
-                  composition === g.id
+                className={`px-3 py-1.5 text-xs rounded-lg transition-all shrink-0 font-medium ${composition === g.id
                     ? 'bg-teal-500/10 text-teal-400 border border-teal-500/20'
                     : 'text-neutral-500 hover:text-neutral-300'
-                }`}
+                  }`}
               >
                 {g.label}
               </button>
@@ -264,23 +333,22 @@ export default function App() {
 
           {/* Interactive Viewfinder Sandbox */}
           <div className="w-full flex-1 glass-panel rounded-3xl p-4 flex flex-col justify-center items-center min-h-[350px] relative overflow-hidden">
-            
+
             {/* Camera Shutter Flash Overlay */}
             {shutterFlash && (
               <div className="absolute inset-0 bg-white z-20 animate-shutter pointer-events-none" />
             )}
 
             {/* Target Interactive Image Box */}
-            <div className="relative max-w-full max-h-[500px] rounded-lg shadow-2xl border border-neutral-800">
+            <div className="relative max-w-full max-h-[500px] rounded-lg shadow-2xl">
               <img
                 ref={imageRef}
                 src={imageUrl}
                 crossOrigin="anonymous"
                 alt="Photography subject"
-                className="max-w-full max-h-[500px] object-contain rounded-lg select-none"
+                className="block max-w-full max-h-[500px] object-contain rounded-lg select-none"
                 draggable={false}
               />
-              
               {/* Dynamic Viewfinder overlay */}
               <Viewfinder
                 imageRef={imageRef}
@@ -291,18 +359,53 @@ export default function App() {
                 box={box}
                 setBox={setBox}
               />
+
+              {/* AI Hint Overlay Card */}
+              {hintText && (
+                <div className="absolute inset-x-4 bottom-4 bg-gradient-to-t from-amber-950/20 to-neutral-900/95 border border-amber-500/30 p-4 rounded-xl shadow-2xl backdrop-blur-md z-20 animate-fade-in space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-amber-400 font-bold text-xs">
+                      <Lightbulb size={14} className="text-amber-400 animate-pulse" />
+                      <span>💡 AI Composition Hint</span>
+                    </div>
+                    <button
+                      onClick={() => setHintText(null)}
+                      className="text-neutral-500 hover:text-neutral-300 text-xs font-bold px-1.5 py-0.5 hover:bg-neutral-900 rounded transition-colors cursor-pointer"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-neutral-300 leading-relaxed italic">
+                    "{hintText}"
+                  </p>
+                </div>
+              )}
             </div>
 
-            {/* Spiral rotation utility trigger */}
-            {composition === 'spiral' && (
+            {/* Top-Right Control Actions Container */}
+            <div className="absolute top-6 right-6 flex items-center gap-2 z-20">
+              {composition === 'spiral' && (
+                <button
+                  onClick={rotateSpiral}
+                  className="bg-neutral-900/95 hover:bg-neutral-800 border border-neutral-800 text-teal-400 p-2 px-3 rounded-full shadow-lg transition-all flex items-center gap-1.5 text-xs cursor-pointer"
+                  title="Rotate Spiral Guide"
+                >
+                  <RotateCw size={14} className="animate-spin-slow" />
+                  <span className="hidden sm:inline">Rotate Spiral</span>
+                </button>
+              )}
+
               <button
-                onClick={rotateSpiral}
-                className="absolute top-6 right-6 bg-neutral-900/95 hover:bg-neutral-800 border border-neutral-800 text-teal-400 p-2.5 rounded-full shadow-lg transition-all flex items-center gap-1.5 text-xs"
+                onClick={getHint}
+                disabled={hintLoading}
+                className={`bg-neutral-900/95 hover:bg-neutral-800 border border-neutral-800 text-amber-400 p-2 px-3 rounded-full shadow-lg transition-all flex items-center gap-1.5 text-xs cursor-pointer ${hintLoading ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                title="Get AI composition advice for this image"
               >
-                <RotateCw size={14} className="animate-spin-slow" />
-                <span>Rotate Spiral</span>
+                <Lightbulb size={13} className="text-amber-400 animate-pulse" />
+                <span>{hintLoading ? 'Thinking...' : 'AI Hint'}</span>
               </button>
-            )}
+            </div>
 
             {/* Photo description */}
             <div className="mt-4 text-center max-w-lg">
@@ -314,14 +417,14 @@ export default function App() {
 
           {/* Shutter Button trigger with Retake next to it */}
           <div className="relative flex items-center justify-center w-full py-2">
+            {/* Shutter Button */}
             <button
               onClick={takeShot}
               disabled={croppedBase64 !== null}
-              className={`w-20 h-20 rounded-full border-4 border-neutral-800 flex items-center justify-center p-1 transition-all shrink-0 ${
-                croppedBase64
+              className={`w-20 h-20 rounded-full border-4 border-neutral-800 flex items-center justify-center p-1 transition-all shrink-0 ${croppedBase64
                   ? 'opacity-30 cursor-not-allowed scale-95'
                   : 'hover:border-teal-400 active:scale-95 bg-neutral-900 shadow-[0_0_15px_rgba(20,184,166,0.1)]'
-              }`}
+                }`}
               title="Snap framing & analyze composition"
             >
               <div className="w-full h-full rounded-full bg-teal-500 hover:bg-teal-400 flex items-center justify-center text-neutral-950 transition-colors">
@@ -329,6 +432,7 @@ export default function App() {
               </div>
             </button>
 
+            {/* Retake Button (Right of Shutter) */}
             {croppedBase64 && (
               <button
                 onClick={() => {

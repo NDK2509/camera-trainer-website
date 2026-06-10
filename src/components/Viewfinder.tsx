@@ -236,7 +236,7 @@ export const Viewfinder: React.FC<ViewfinderProps> = ({
   };
 
   return (
-    <div className="absolute inset-0 select-none overflow-hidden rounded-lg">
+    <div className="absolute -inset-[1px] select-none overflow-hidden rounded-lg">
       {/* Dimmed background overlay outside of viewfinder box */}
       <div 
         className="absolute inset-0 bg-neutral-950/70"
