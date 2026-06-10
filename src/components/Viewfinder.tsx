@@ -122,20 +122,20 @@ export const Viewfinder: React.FC<ViewfinderProps> = ({
 
         let newWidth = resizeStart.current.boxWidth;
         let newHeight = resizeStart.current.boxHeight;
-        let newX = box.x;
-        let newY = box.y;
+        let newX = resizeStart.current.boxX;
+        let newY = resizeStart.current.boxY;
 
         if (isResizing === 'br') {
           newWidth = Math.max(15, resizeStart.current.boxWidth + deltaX);
           newHeight = (newWidth * containerRatio) / targetRatio;
 
           // Clamping to boundaries
-          if (box.x + newWidth > 100) {
-            newWidth = 100 - box.x;
+          if (newX + newWidth > 100) {
+            newWidth = 100 - newX;
             newHeight = (newWidth * containerRatio) / targetRatio;
           }
-          if (box.y + newHeight > 100) {
-            newHeight = 100 - box.y;
+          if (newY + newHeight > 100) {
+            newHeight = 100 - newY;
             newWidth = (newHeight * targetRatio) / containerRatio;
           }
         } else if (isResizing === 'tl') {
@@ -157,6 +157,48 @@ export const Viewfinder: React.FC<ViewfinderProps> = ({
             newWidth = (newHeight * targetRatio) / containerRatio;
             newY = 0;
             newX = resizeStart.current.boxX + (resizeStart.current.boxWidth - newWidth);
+          }
+        } else if (isResizing === 'tr') {
+          newWidth = Math.max(15, resizeStart.current.boxWidth + deltaX);
+          newHeight = (newWidth * containerRatio) / targetRatio;
+          const bottomEdge = resizeStart.current.boxY + resizeStart.current.boxHeight;
+          newY = bottomEdge - newHeight;
+
+          if (newX + newWidth > 100) {
+            newWidth = 100 - newX;
+            newHeight = (newWidth * containerRatio) / targetRatio;
+            newY = bottomEdge - newHeight;
+          }
+          if (newY < 0) {
+            newHeight = bottomEdge;
+            newWidth = (newHeight * targetRatio) / containerRatio;
+            newY = 0;
+            if (newX + newWidth > 100) {
+              newWidth = 100 - newX;
+              newHeight = (newWidth * containerRatio) / targetRatio;
+              newY = bottomEdge - newHeight;
+            }
+          }
+        } else if (isResizing === 'bl') {
+          newWidth = Math.max(15, resizeStart.current.boxWidth - deltaX);
+          newHeight = (newWidth * containerRatio) / targetRatio;
+          const rightEdge = resizeStart.current.boxX + resizeStart.current.boxWidth;
+          newX = rightEdge - newWidth;
+
+          if (newX < 0) {
+            newWidth = rightEdge;
+            newHeight = (newWidth * containerRatio) / targetRatio;
+            newX = 0;
+          }
+          if (newY + newHeight > 100) {
+            newHeight = 100 - newY;
+            newWidth = (newHeight * targetRatio) / containerRatio;
+            newX = rightEdge - newWidth;
+            if (newX < 0) {
+              newWidth = rightEdge;
+              newHeight = (newWidth * containerRatio) / targetRatio;
+              newX = 0;
+            }
           }
         }
 
@@ -229,12 +271,24 @@ export const Viewfinder: React.FC<ViewfinderProps> = ({
         </div>
 
         {/* Corner Resize Handles */}
+        {/* Top-Left */}
         <div
-          className="absolute -top-1 -left-1 w-4 h-4 border-t-4 border-l-4 border-teal-400 cursor-nwse-resize rounded-tl-sm active:border-teal-200"
+          className="absolute -top-1 -left-1 w-4 h-4 border-t-4 border-l-4 border-teal-400 cursor-nwse-resize rounded-tl-sm active:border-teal-200 z-10"
           onMouseDown={(e) => handleResizeStart(e, 'tl')}
         />
+        {/* Top-Right */}
         <div
-          className="absolute -bottom-1 -right-1 w-4 h-4 border-b-4 border-r-4 border-teal-400 cursor-nwse-resize rounded-br-sm active:border-teal-200"
+          className="absolute -top-1 -right-1 w-4 h-4 border-t-4 border-r-4 border-teal-400 cursor-nesw-resize rounded-tr-sm active:border-teal-200 z-10"
+          onMouseDown={(e) => handleResizeStart(e, 'tr')}
+        />
+        {/* Bottom-Left */}
+        <div
+          className="absolute -bottom-1 -left-1 w-4 h-4 border-b-4 border-l-4 border-teal-400 cursor-nesw-resize rounded-bl-sm active:border-teal-200 z-10"
+          onMouseDown={(e) => handleResizeStart(e, 'bl')}
+        />
+        {/* Bottom-Right */}
+        <div
+          className="absolute -bottom-1 -right-1 w-4 h-4 border-b-4 border-r-4 border-teal-400 cursor-nwse-resize rounded-br-sm active:border-teal-200 z-10"
           onMouseDown={(e) => handleResizeStart(e, 'br')}
         />
 
